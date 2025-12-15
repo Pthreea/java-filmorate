@@ -25,7 +25,7 @@ class UserControllerTest {
         user.setName("User Name");
         user.setBirthday(LocalDate.of(1990, 1, 1));
 
-        User created = userController.create(user);
+        User created = userController.createUser(user);
 
         assertNotNull(created.getId(), "ID должен быть присвоен");
         assertEquals("user@example.com", created.getEmail());
@@ -40,7 +40,7 @@ class UserControllerTest {
         user.setName("User Name");
         user.setBirthday(LocalDate.of(1990, 1, 1));
 
-        User created = userController.create(user);
+        User created = userController.createUser(user);
 
         created.setName("Updated Name");
         User updated = userController.updateUser(created);
@@ -75,8 +75,8 @@ class UserControllerTest {
         user2.setName("User Two");
         user2.setBirthday(LocalDate.of(1995, 1, 1));
 
-        userController.create(user1);
-        userController.create(user2);
+        userController.createUser(user1);
+        userController.createUser(user2);
 
         assertEquals(2, userController.getAllUsers().size());
     }
@@ -89,7 +89,7 @@ class UserControllerTest {
         user.setName("User Name");
         user.setBirthday(LocalDate.of(1990, 1, 1));
 
-        User created = userController.create(user);
+        User created = userController.createUser(user);
         User found = userController.getUserById(created.getId());
 
         assertEquals(created.getId(), found.getId());
@@ -115,8 +115,8 @@ class UserControllerTest {
         user2.setName("User Two");
         user2.setBirthday(LocalDate.of(1995, 1, 1));
 
-        User created1 = userController.create(user1);
-        User created2 = userController.create(user2);
+        User created1 = userController.createUser(user1);
+        User created2 = userController.createUser(user2);
 
         assertEquals(1L, created1.getId());
         assertEquals(2L, created2.getId());
