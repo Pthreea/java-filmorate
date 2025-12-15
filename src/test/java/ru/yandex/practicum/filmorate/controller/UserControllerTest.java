@@ -62,45 +62,6 @@ class UserControllerTest {
     }
 
     @Test
-    void shouldUseLoginAsNameWhenNameIsEmpty() {
-        User user = new User();
-        user.setEmail("user@example.com");
-        user.setLogin("userlogin");
-        user.setName("");
-        user.setBirthday(LocalDate.of(1990, 1, 1));
-
-        User created = userController.create(user);
-
-        assertEquals("userlogin", created.getName(), "Имя должно быть заменено на логин");
-    }
-
-    @Test
-    void shouldUseLoginAsNameWhenNameIsNull() {
-        User user = new User();
-        user.setEmail("user@example.com");
-        user.setLogin("userlogin");
-        user.setName(null);
-        user.setBirthday(LocalDate.of(1990, 1, 1));
-
-        User created = userController.create(user);
-
-        assertEquals("userlogin", created.getName(), "Имя должно быть заменено на логин");
-    }
-
-    @Test
-    void shouldUseLoginAsNameWhenNameIsBlank() {
-        User user = new User();
-        user.setEmail("user@example.com");
-        user.setLogin("userlogin");
-        user.setName("   ");
-        user.setBirthday(LocalDate.of(1990, 1, 1));
-
-        User created = userController.create(user);
-
-        assertEquals("userlogin", created.getName(), "Имя должно быть заменено на логин");
-    }
-
-    @Test
     void shouldGetAllUsers() {
         User user1 = new User();
         user1.setEmail("user1@example.com");

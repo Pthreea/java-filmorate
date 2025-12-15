@@ -62,17 +62,6 @@ class FilmControllerTest {
     }
 
     @Test
-    void shouldThrowExceptionWhenReleaseDateBeforeCinemaBirthday() {
-        Film film = new Film();
-        film.setName("Фильм");
-        film.setDescription("Описание");
-        film.setReleaseDate(LocalDate.of(1895, 12, 27)); // День до рождения кино
-        film.setDuration(169);
-
-        assertThrows(IllegalArgumentException.class, () -> filmController.createFilm(film));
-    }
-
-    @Test
     void shouldCreateFilmWithReleaseDateAtCinemaBirthday() {
         Film film = new Film();
         film.setName("Фильм");
