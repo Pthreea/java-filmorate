@@ -1,135 +1,137 @@
-package ru.yandex.practicum.filmorate.controller;
+package ru.yandex.practicum.filmorate.service;
 
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
-import ru.yandex.practicum.filmorate.exception.ValidationException;
-import ru.yandex.practicum.filmorate.model.Film;
-import ru.yandex.practicum.filmorate.service.FilmService;
-import ru.yandex.practicum.filmorate.storage.film.InMemoryFilmStorage;
-import ru.yandex.practicum.filmorate.storage.user.InMemoryUserStorage;
+import ru.yandex.practicum.filmorate.model.User;
+import ru.yandex.practicum.filmorate.storage.user.UserStorage;
 
-import java.time.LocalDate;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
-import static org.junit.jupiter.api.Assertions.*;
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class UserService {
 
-class FilmControllerTest {
+    private final UserStorage userStorage;
 
-    private FilmController filmController;
-    private InMemoryFilmStorage filmStorage;
-    private FilmService filmService;
+    public void addFriend(Long userId, Long friendId) {
+        log.debug("Добавление в друзья: userId={}, friendId={}", userId, friendId);
 
-    @BeforeEach
-    void setUp() {
-        filmStorage = new InMemoryFilmStorage();
-        InMemoryUserStorage userStorage = new InMemoryUserStorage();
-        filmService = new FilmService(filmStorage, userStorage);
-        filmController = new FilmController(filmStorage, filmService);
+        User user = userStorage.findById(userId)
+                .orElseThrow(() -> {
+                    log.error("Пользователь с id={} не найден при попытке добавить друга", userId);
+                    return new NotFoundException("Пользователь с id " + userId + " не найден");
+                });
+        User friend = userStorage.findById(friendId)
+                .orElseThrow(() -> {
+                    log.error("Пользователь с id={} не найден при попытке добавить в друзья", friendId);
+                    return new NotFoundException("Пользователь с id " + friendId + " не найден");
+                });
+
+        int userFriendsBefore = user.getFriends().size();
+        int friendFriendsBefore = friend.getFriends().size();
+
+        user.getFriends().add(friendId);
+        friend.getFriends().add(userId);
+
+        userStorage.update(user);
+        userStorage.update(friend);
+
+        log.info("Пользователь {} ({}) и пользователь {} ({}) теперь друзья",
+                userId, user.getLogin(), friendId, friend.getLogin());
+        log.debug("Количество друзей пользователя {}: {} -> {}", userId, userFriendsBefore, user.getFriends().size());
+        log.debug("Количество друзей пользователя {}: {} -> {}", friendId, friendFriendsBefore, friend.getFriends().size());
     }
 
-    @Test
-    void shouldCreateFilm() {
-        Film film = new Film();
-        film.setName("Test Film");
-        film.setDescription("Test Description");
-        film.setReleaseDate(LocalDate.of(2000, 1, 1));
-        film.setDuration(120);
+    public void removeFriend(Long userId, Long friendId) {
+        log.debug("Удаление из друзей: userId={}, friendId={}", userId, friendId);
 
-        Film createdFilm = filmController.createFilm(film);
+        User user = userStorage.findById(userId)
+                .orElseThrow(() -> {
+                    log.error("Пользователь с id={} не найден при попытке удалить друга", userId);
+                    return new NotFoundException("Пользователь с id " + userId + " не найден");
+                });
+        User friend = userStorage.findById(friendId)
+                .orElseThrow(() -> {
+                    log.error("Пользователь с id={} не найден при попытке удалить из друзей", friendId);
+                    return new NotFoundException("Пользователь с id " + friendId + " не найден");
+                });
 
-        assertNotNull(createdFilm.getId());
-        assertEquals("Test Film", createdFilm.getName());
-        assertEquals(1, filmController.getAllFilms().size());
+        boolean removedFromUser = user.getFriends().remove(friendId);
+        boolean removedFromFriend = friend.getFriends().remove(userId);
+
+        userStorage.update(user);
+        userStorage.update(friend);
+
+        if (removedFromUser && removedFromFriend) {
+            log.info("Пользователь {} ({}) и пользователь {} ({}) больше не друзья",
+                    userId, user.getLogin(), friendId, friend.getLogin());
+            log.debug("Количество друзей пользователя {}: {}", userId, user.getFriends().size());
+            log.debug("Количество друзей пользователя {}: {}", friendId, friend.getFriends().size());
+        } else {
+            log.debug("Пользователи {} и {} не были друзьями", userId, friendId);
+        }
     }
 
-    @Test
-    void shouldUpdateFilm() {
-        Film film = new Film();
-        film.setName("Original Name");
-        film.setDescription("Original Description");
-        film.setReleaseDate(LocalDate.of(2000, 1, 1));
-        film.setDuration(120);
+    public List<User> getFriends(Long userId) {
+        log.debug("Получение списка друзей пользователя с id={}", userId);
 
-        Film createdFilm = filmController.createFilm(film);
+        User user = userStorage.findById(userId)
+                .orElseThrow(() -> {
+                    log.error("Пользователь с id={} не найден при попытке получить список друзей", userId);
+                    return new NotFoundException("Пользователь с id " + userId + " не найден");
+                });
 
-        createdFilm.setName("Updated Name");
-        Film updatedFilm = filmController.updateFilm(createdFilm);
+        List<User> friends = user.getFriends().stream()
+                .map(friendId -> userStorage.findById(friendId)
+                        .orElseThrow(() -> {
+                            log.error("Друг с id={} не найден в хранилище", friendId);
+                            return new NotFoundException("Друг с id " + friendId + " не найден");
+                        }))
+                .collect(Collectors.toList());
 
-        assertEquals("Updated Name", updatedFilm.getName());
-        assertEquals(createdFilm.getId(), updatedFilm.getId());
+        log.info("У пользователя {} ({}) найдено {} друзей", userId, user.getLogin(), friends.size());
+        log.trace("Друзья пользователя {}: {}", userId, friends);
+
+        return friends;
     }
 
-    @Test
-    void shouldThrowExceptionWhenUpdateNonExistentFilm() {
-        Film film = new Film();
-        film.setId(999L);
-        film.setName("Test Film");
-        film.setDescription("Test Description");
-        film.setReleaseDate(LocalDate.of(2000, 1, 1));
-        film.setDuration(120);
+    public List<User> getCommonFriends(Long userId, Long otherId) {
+        log.debug("Поиск общих друзей: userId={}, otherId={}", userId, otherId);
 
-        assertThrows(NotFoundException.class, () -> filmController.updateFilm(film));
-    }
+        User user = userStorage.findById(userId)
+                .orElseThrow(() -> {
+                    log.error("Пользователь с id={} не найден при поиске общих друзей", userId);
+                    return new NotFoundException("Пользователь с id " + userId + " не найден");
+                });
+        User other = userStorage.findById(otherId)
+                .orElseThrow(() -> {
+                    log.error("Пользователь с id={} не найден при поиске общих друзей", otherId);
+                    return new NotFoundException("Пользователь с id " + otherId + " не найден");
+                });
 
-    @Test
-    void shouldGetFilmById() {
-        Film film = new Film();
-        film.setName("Test Film");
-        film.setDescription("Test Description");
-        film.setReleaseDate(LocalDate.of(2000, 1, 1));
-        film.setDuration(120);
+        Set<Long> commonFriendsIds = user.getFriends().stream()
+                .filter(other.getFriends()::contains)
+                .collect(Collectors.toSet());
 
-        Film createdFilm = filmController.createFilm(film);
-        Film foundFilm = filmController.getFilmById(createdFilm.getId());
+        log.debug("Найдено {} ID общих друзей: {}", commonFriendsIds.size(), commonFriendsIds);
 
-        assertEquals(createdFilm.getId(), foundFilm.getId());
-        assertEquals("Test Film", foundFilm.getName());
-    }
+        List<User> commonFriends = commonFriendsIds.stream()
+                .map(friendId -> userStorage.findById(friendId)
+                        .orElseThrow(() -> {
+                            log.error("Общий друг с id={} не найден в хранилище", friendId);
+                            return new NotFoundException("Общий друг с id " + friendId + " не найден");
+                        }))
+                .collect(Collectors.toList());
 
-    @Test
-    void shouldThrowExceptionWhenGetNonExistentFilm() {
-        assertThrows(NotFoundException.class, () -> filmController.getFilmById(999L));
-    }
+        log.info("У пользователей {} ({}) и {} ({}) найдено {} общих друзей",
+                userId, user.getLogin(), otherId, other.getLogin(), commonFriends.size());
+        log.trace("Общие друзья: {}", commonFriends);
 
-    @Test
-    void shouldGetAllFilms() {
-        Film film1 = new Film();
-        film1.setName("Film 1");
-        film1.setDescription("Description 1");
-        film1.setReleaseDate(LocalDate.of(2000, 1, 1));
-        film1.setDuration(120);
-
-        Film film2 = new Film();
-        film2.setName("Film 2");
-        film2.setDescription("Description 2");
-        film2.setReleaseDate(LocalDate.of(2001, 1, 1));
-        film2.setDuration(130);
-
-        filmController.createFilm(film1);
-        filmController.createFilm(film2);
-
-        assertEquals(2, filmController.getAllFilms().size());
-    }
-
-    @Test
-    void shouldThrowExceptionWhenReleaseDateBeforeCinemaBirthday() {
-        Film film = new Film();
-        film.setName("Test Film");
-        film.setDescription("Test Description");
-        film.setReleaseDate(LocalDate.of(1895, 12, 27)); // День до дня рождения кино
-        film.setDuration(120);
-
-        assertThrows(ValidationException.class, () -> filmController.createFilm(film));
-    }
-
-    @Test
-    void shouldAllowReleaseDateOnCinemaBirthday() {
-        Film film = new Film();
-        film.setName("Test Film");
-        film.setDescription("Test Description");
-        film.setReleaseDate(LocalDate.of(1895, 12, 28)); // День рождения кино
-        film.setDuration(120);
-
-        assertDoesNotThrow(() -> filmController.createFilm(film));
+        return commonFriends;
     }
 }

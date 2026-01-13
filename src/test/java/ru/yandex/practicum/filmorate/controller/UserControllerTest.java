@@ -7,6 +7,7 @@ import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.model.User;
 import ru.yandex.practicum.filmorate.service.UserService;
 import ru.yandex.practicum.filmorate.storage.user.InMemoryUserStorage;
+import ru.yandex.practicum.filmorate.storage.user.UserStorage;
 
 import java.time.LocalDate;
 
@@ -15,7 +16,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class UserControllerTest {
 
     private UserController userController;
-    private InMemoryUserStorage userStorage;
+    private UserStorage userStorage;
     private UserService userService;
 
     @BeforeEach
@@ -46,7 +47,7 @@ class UserControllerTest {
         User user = new User();
         user.setEmail("test@example.com");
         user.setLogin("testLogin");
-        user.setName(""); // Пустое имя
+        user.setName("");
         user.setBirthday(LocalDate.of(1990, 1, 1));
 
         User createdUser = userController.createUser(user);
@@ -59,7 +60,20 @@ class UserControllerTest {
         User user = new User();
         user.setEmail("test@example.com");
         user.setLogin("testLogin");
-        user.setName(null); // Null имя
+        user.setName(null);
+        user.setBirthday(LocalDate.of(1990, 1, 1));
+
+        User createdUser = userController.createUser(user);
+
+        assertEquals("testLogin", createdUser.getName());
+    }
+
+    @Test
+    void shouldUseLoginAsNameWhenNameIsBlank() {
+        User user = new User();
+        user.setEmail("test@example.com");
+        user.setLogin("testLogin");
+        user.setName("   ");
         user.setBirthday(LocalDate.of(1990, 1, 1));
 
         User createdUser = userController.createUser(user);
@@ -209,13 +223,45 @@ class UserControllerTest {
         User createdUser2 = userController.createUser(user2);
         User createdUser3 = userController.createUser(user3);
 
-        // User1 и User2 добавляют User3 в друзья
         userController.addFriend(createdUser1.getId(), createdUser3.getId());
         userController.addFriend(createdUser2.getId(), createdUser3.getId());
 
-        // Проверяем общих друзей
         assertEquals(1, userController.getCommonFriends(createdUser1.getId(), createdUser2.getId()).size());
         assertEquals(createdUser3.getId(),
                 userController.getCommonFriends(createdUser1.getId(), createdUser2.getId()).get(0).getId());
+    }
+
+    @Test
+    void shouldReturnEmptyListWhenNoCommonFriends() {
+        User user1 = new User();
+        user1.setEmail("user1@example.com");
+        user1.setLogin("login1");
+        user1.setName("User 1");
+        user1.setBirthday(LocalDate.of(1990, 1, 1));
+
+        User user2 = new User();
+        user2.setEmail("user2@example.com");
+        user2.setLogin("login2");
+        user2.setName("User 2");
+        user2.setBirthday(LocalDate.of(1991, 1, 1));
+
+        User createdUser1 = userController.createUser(user1);
+        User createdUser2 = userController.createUser(user2);
+
+        assertEquals(0, userController.getCommonFriends(createdUser1.getId(), createdUser2.getId()).size());
+    }
+
+    @Test
+    void shouldThrowExceptionWhenAddingNonExistentUserAsFriend() {
+        User user = new User();
+        user.setEmail("user@example.com");
+        user.setLogin("login");
+        user.setName("User");
+        user.setBirthday(LocalDate.of(1990, 1, 1));
+
+        User createdUser = userController.createUser(user);
+
+        assertThrows(NotFoundException.class, () ->
+                userController.addFriend(createdUser.getId(), 999L));
     }
 }
