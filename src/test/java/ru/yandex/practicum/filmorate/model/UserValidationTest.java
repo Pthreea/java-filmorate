@@ -172,6 +172,19 @@ class UserValidationTest {
     }
 
     @Test
+    void shouldPassValidationWhenBirthdayIsToday() {
+        User user = new User();
+        user.setEmail("user@example.com");
+        user.setLogin("userlogin");
+        user.setName("User Name");
+        user.setBirthday(LocalDate.now());
+
+        Set<ConstraintViolation<User>> violations = validator.validate(user);
+
+        assertTrue(violations.isEmpty(), "Сегодняшняя дата рождения должна быть валидной");
+    }
+
+    @Test
     void shouldPassValidationWhenBirthdayIsYesterday() {
         User user = new User();
         user.setEmail("user@example.com");

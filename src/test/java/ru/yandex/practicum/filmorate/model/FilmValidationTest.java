@@ -90,6 +90,21 @@ class FilmValidationTest {
     }
 
     @Test
+    void shouldFailValidationWhenDescriptionLength201() {
+        Film film = new Film();
+        film.setName("Фильм");
+        film.setDescription("А".repeat(201)); // 201 символ
+        film.setReleaseDate(LocalDate.of(2014, 11, 6));
+        film.setDuration(169);
+
+        Set<ConstraintViolation<Film>> violations = validator.validate(film);
+
+        assertFalse(violations.isEmpty(), "Описание длиной 201 символ должно вызвать ошибку валидации");
+        assertTrue(violations.stream()
+                .anyMatch(v -> v.getMessage().equals("Максимальная длина описания - 200 символов")));
+    }
+
+    @Test
     void shouldPassValidationWithEmptyDescription() {
         Film film = new Film();
         film.setName("Фильм");
