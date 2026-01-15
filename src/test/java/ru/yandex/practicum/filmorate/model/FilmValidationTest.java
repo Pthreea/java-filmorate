@@ -80,13 +80,28 @@ class FilmValidationTest {
     void shouldPassValidationWithDescriptionLength200() {
         Film film = new Film();
         film.setName("Фильм");
-        film.setDescription("А".repeat(200)); // ровно 200 символов
+        film.setDescription("А".repeat(200));
         film.setReleaseDate(LocalDate.of(2014, 11, 6));
         film.setDuration(169);
 
         Set<ConstraintViolation<Film>> violations = validator.validate(film);
 
         assertTrue(violations.isEmpty(), "Описание длиной 200 символов должно быть валидным");
+    }
+
+    @Test
+    void shouldFailValidationWhenDescriptionLength201() {
+        Film film = new Film();
+        film.setName("Фильм");
+        film.setDescription("А".repeat(201));
+        film.setReleaseDate(LocalDate.of(2014, 11, 6));
+        film.setDuration(169);
+
+        Set<ConstraintViolation<Film>> violations = validator.validate(film);
+
+        assertFalse(violations.isEmpty(), "Описание длиной 201 символ должно вызвать ошибку валидации");
+        assertTrue(violations.stream()
+                .anyMatch(v -> v.getMessage().equals("Максимальная длина описания - 200 символов")));
     }
 
     @Test
@@ -120,7 +135,7 @@ class FilmValidationTest {
         Film film = new Film();
         film.setName("Фильм");
         film.setDescription("Описание");
-        film.setReleaseDate(LocalDate.of(1895, 12, 28)); // День рождения кино
+        film.setReleaseDate(LocalDate.of(1895, 12, 28));
         film.setDuration(169);
 
         Set<ConstraintViolation<Film>> violations = validator.validate(film);
