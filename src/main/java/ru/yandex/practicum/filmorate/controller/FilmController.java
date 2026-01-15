@@ -3,14 +3,10 @@ package ru.yandex.practicum.filmorate.controller;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
-import ru.yandex.practicum.filmorate.exception.NotFoundException;
-import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.model.Film;
 import ru.yandex.practicum.filmorate.service.FilmService;
-import ru.yandex.practicum.filmorate.storage.film.FilmStorage;
 
-import javax.validation.Valid;
-import java.time.LocalDate;
+import jakarta.validation.Valid;
 import java.util.List;
 
 @Slf4j
@@ -19,16 +15,12 @@ import java.util.List;
 @RequiredArgsConstructor
 public class FilmController {
 
-    private static final LocalDate CINEMA_BIRTHDAY = LocalDate.of(1895, 12, 28);
-
-    private final FilmStorage filmStorage;
     private final FilmService filmService;
 
     @PostMapping
     public Film createFilm(@Valid @RequestBody Film film) {
         log.debug("Получен запрос POST /films: {}", film);
-        validateFilm(film);
-        Film createdFilm = filmStorage.create(film);
+        Film createdFilm = filmService.createFilm(film);
         log.info("Создан фильм с id={}", createdFilm.getId());
         return createdFilm;
     }
@@ -36,8 +28,7 @@ public class FilmController {
     @PutMapping
     public Film updateFilm(@Valid @RequestBody Film film) {
         log.debug("Получен запрос PUT /films: {}", film);
-        validateFilm(film);
-        Film updatedFilm = filmStorage.update(film);
+        Film updatedFilm = filmService.updateFilm(film);
         log.info("Обновлён фильм с id={}", updatedFilm.getId());
         return updatedFilm;
     }
@@ -45,7 +36,7 @@ public class FilmController {
     @GetMapping
     public List<Film> getAllFilms() {
         log.debug("Получен запрос GET /films");
-        List<Film> films = filmStorage.findAll();
+        List<Film> films = filmService.getAllFilms();
         log.info("Возвращено {} фильмов", films.size());
         return films;
     }
@@ -53,11 +44,7 @@ public class FilmController {
     @GetMapping("/{id}")
     public Film getFilmById(@PathVariable Long id) {
         log.debug("Получен запрос GET /films/{}", id);
-        Film film = filmStorage.findById(id)
-                .orElseThrow(() -> {
-                    log.warn("Фильм с id {} не найден", id);
-                    return new NotFoundException("Фильм с id " + id + " не найден");
-                });
+        Film film = filmService.getFilmById(id);
         log.info("Найден фильм с id={}", id);
         return film;
     }
@@ -82,12 +69,5 @@ public class FilmController {
         List<Film> popularFilms = filmService.getPopularFilms(count);
         log.info("Возвращено {} популярных фильмов", popularFilms.size());
         return popularFilms;
-    }
-
-    private void validateFilm(Film film) {
-        if (film.getReleaseDate().isBefore(CINEMA_BIRTHDAY)) {
-            log.warn("Попытка создать фильм с датой релиза до {}: {}", CINEMA_BIRTHDAY, film.getReleaseDate());
-            throw new ValidationException("Дата релиза не может быть раньше " + CINEMA_BIRTHDAY);
-        }
     }
 }

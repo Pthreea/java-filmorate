@@ -3,12 +3,10 @@ package ru.yandex.practicum.filmorate.controller;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
-import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.model.User;
 import ru.yandex.practicum.filmorate.service.UserService;
-import ru.yandex.practicum.filmorate.storage.user.UserStorage;
 
-import javax.validation.Valid;
+import jakarta.validation.Valid;
 import java.util.List;
 
 @Slf4j
@@ -17,14 +15,12 @@ import java.util.List;
 @RequiredArgsConstructor
 public class UserController {
 
-    private final UserStorage userStorage;
     private final UserService userService;
 
     @PostMapping
     public User createUser(@Valid @RequestBody User user) {
         log.debug("Получен запрос POST /users: {}", user);
-        validateAndSetUserName(user);
-        User createdUser = userStorage.create(user);
+        User createdUser = userService.createUser(user);
         log.info("Создан пользователь с id={}", createdUser.getId());
         return createdUser;
     }
@@ -32,8 +28,7 @@ public class UserController {
     @PutMapping
     public User updateUser(@Valid @RequestBody User user) {
         log.debug("Получен запрос PUT /users: {}", user);
-        validateAndSetUserName(user);
-        User updatedUser = userStorage.update(user);
+        User updatedUser = userService.updateUser(user);
         log.info("Обновлён пользователь с id={}", updatedUser.getId());
         return updatedUser;
     }
@@ -41,7 +36,7 @@ public class UserController {
     @GetMapping
     public List<User> getAllUsers() {
         log.debug("Получен запрос GET /users");
-        List<User> users = userStorage.findAll();
+        List<User> users = userService.getAllUsers();
         log.info("Возвращено {} пользователей", users.size());
         return users;
     }
@@ -49,11 +44,7 @@ public class UserController {
     @GetMapping("/{id}")
     public User getUserById(@PathVariable Long id) {
         log.debug("Получен запрос GET /users/{}", id);
-        User user = userStorage.findById(id)
-                .orElseThrow(() -> {
-                    log.warn("Пользователь с id {} не найден", id);
-                    return new NotFoundException("Пользователь с id " + id + " не найден");
-                });
+        User user = userService.getUserById(id);
         log.info("Найден пользователь с id={}", id);
         return user;
     }
@@ -86,12 +77,5 @@ public class UserController {
         List<User> commonFriends = userService.getCommonFriends(id, otherId);
         log.info("Возвращено {} общих друзей для пользователей {} и {}", commonFriends.size(), id, otherId);
         return commonFriends;
-    }
-
-    private void validateAndSetUserName(User user) {
-        if (user.getName() == null || user.getName().isBlank()) {
-            log.debug("Имя пользователя пустое, используем логин: {}", user.getLogin());
-            user.setName(user.getLogin());
-        }
     }
 }

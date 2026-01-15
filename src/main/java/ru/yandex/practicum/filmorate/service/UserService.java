@@ -18,6 +18,40 @@ public class UserService {
 
     private final UserStorage userStorage;
 
+    public User createUser(User user) {
+        log.debug("Создание пользователя: {}", user);
+        validateAndSetUserName(user);
+        User createdUser = userStorage.create(user);
+        log.info("Пользователь успешно создан с id={}", createdUser.getId());
+        return createdUser;
+    }
+
+    public User updateUser(User user) {
+        log.debug("Обновление пользователя: {}", user);
+        validateAndSetUserName(user);
+        User updatedUser = userStorage.update(user);
+        log.info("Пользователь с id={} успешно обновлен", updatedUser.getId());
+        return updatedUser;
+    }
+
+    public List<User> getAllUsers() {
+        log.debug("Получение всех пользователей");
+        List<User> users = userStorage.findAll();
+        log.info("Найдено {} пользователей", users.size());
+        return users;
+    }
+
+    public User getUserById(Long id) {
+        log.debug("Получение пользователя по id={}", id);
+        User user = userStorage.findById(id)
+                .orElseThrow(() -> {
+                    log.error("Пользователь с id={} не найден", id);
+                    return new NotFoundException("Пользователь с id " + id + " не найден");
+                });
+        log.info("Пользователь с id={} найден", id);
+        return user;
+    }
+
     public void addFriend(Long userId, Long friendId) {
         log.debug("Добавление в друзья: userId={}, friendId={}", userId, friendId);
 
@@ -95,7 +129,6 @@ public class UserService {
                 .collect(Collectors.toList());
 
         log.info("У пользователя {} ({}) найдено {} друзей", userId, user.getLogin(), friends.size());
-        log.trace("Друзья пользователя {}: {}", userId, friends);
 
         return friends;
     }
@@ -130,8 +163,14 @@ public class UserService {
 
         log.info("У пользователей {} ({}) и {} ({}) найдено {} общих друзей",
                 userId, user.getLogin(), otherId, other.getLogin(), commonFriends.size());
-        log.trace("Общие друзья: {}", commonFriends);
 
         return commonFriends;
+    }
+
+    private void validateAndSetUserName(User user) {
+        if (user.getName() == null || user.getName().isBlank()) {
+            log.debug("Имя пользователя пустое, используем логин: {}", user.getLogin());
+            user.setName(user.getLogin());
+        }
     }
 }
