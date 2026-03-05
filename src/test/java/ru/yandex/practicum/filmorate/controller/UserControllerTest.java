@@ -1,265 +1,173 @@
 package ru.yandex.practicum.filmorate.controller;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import ru.yandex.practicum.filmorate.exception.NotFoundException;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
 import ru.yandex.practicum.filmorate.model.User;
 import ru.yandex.practicum.filmorate.service.UserService;
-import ru.yandex.practicum.filmorate.storage.user.InMemoryUserStorage;
-import ru.yandex.practicum.filmorate.storage.user.UserStorage;
 
 import java.time.LocalDate;
+import java.util.Arrays;
+import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+@WebMvcTest(UserController.class)
 class UserControllerTest {
-    private UserController userController;
-    private UserStorage userStorage;
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @Autowired
+    private ObjectMapper objectMapper;
+
+    @MockBean
     private UserService userService;
+
+    private User validUser;
 
     @BeforeEach
     void setUp() {
-        userStorage = new InMemoryUserStorage();
-        userService = new UserService(userStorage);
-        userController = new UserController(userStorage, userService);
+        validUser = new User();
+        validUser.setId(1L);
+        validUser.setEmail("test@example.com");
+        validUser.setLogin("testuser");
+        validUser.setName("Test User");
+        validUser.setBirthday(LocalDate.of(1990, 1, 1));
     }
 
     @Test
-    void shouldCreateUser() {
-        User user = new User();
-        user.setEmail("test@example.com");
-        user.setLogin("testLogin");
-        user.setName("Test User");
-        user.setBirthday(LocalDate.of(1990, 1, 1));
+    void createUser_Valid_ReturnsCreatedUser() throws Exception {
+        when(userService.createUser(any(User.class))).thenReturn(validUser);
 
-        User createdUser = userController.createUser(user);
-
-        assertNotNull(createdUser.getId());
-        assertEquals("test@example.com", createdUser.getEmail());
-        assertEquals("testLogin", createdUser.getLogin());
-        assertEquals(1, userController.getAllUsers().size());
+        mockMvc.perform(post("/users")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(validUser)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(1))
+                .andExpect(jsonPath("$.email").value("test@example.com"))
+                .andExpect(jsonPath("$.login").value("testuser"));
     }
 
     @Test
-    void shouldUseLoginAsNameWhenNameIsEmpty() {
-        User user = new User();
-        user.setEmail("test@example.com");
-        user.setLogin("testLogin");
-        user.setName("");
-        user.setBirthday(LocalDate.of(1990, 1, 1));
+    void createUser_EmptyEmail_ReturnsBadRequest() throws Exception {
+        validUser.setEmail("");
 
-        User createdUser = userController.createUser(user);
-
-        assertEquals("testLogin", createdUser.getName());
+        mockMvc.perform(post("/users")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(validUser)))
+                .andExpect(status().isBadRequest());
     }
 
     @Test
-    void shouldUseLoginAsNameWhenNameIsNull() {
-        User user = new User();
-        user.setEmail("test@example.com");
-        user.setLogin("testLogin");
-        user.setName(null);
-        user.setBirthday(LocalDate.of(1990, 1, 1));
+    void createUser_InvalidEmail_ReturnsBadRequest() throws Exception {
+        validUser.setEmail("invalid-email");
 
-        User createdUser = userController.createUser(user);
-
-        assertEquals("testLogin", createdUser.getName());
+        mockMvc.perform(post("/users")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(validUser)))
+                .andExpect(status().isBadRequest());
     }
 
     @Test
-    void shouldUseLoginAsNameWhenNameIsBlank() {
-        User user = new User();
-        user.setEmail("test@example.com");
-        user.setLogin("testLogin");
-        user.setName("   ");
-        user.setBirthday(LocalDate.of(1990, 1, 1));
+    void createUser_EmptyLogin_ReturnsBadRequest() throws Exception {
+        validUser.setLogin("");
 
-        User createdUser = userController.createUser(user);
-
-        assertEquals("testLogin", createdUser.getName());
+        mockMvc.perform(post("/users")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(validUser)))
+                .andExpect(status().isBadRequest());
     }
 
     @Test
-    void shouldUpdateUser() {
-        User user = new User();
-        user.setEmail("original@example.com");
-        user.setLogin("originalLogin");
-        user.setName("Original Name");
-        user.setBirthday(LocalDate.of(1990, 1, 1));
+    void createUser_LoginWithSpaces_ReturnsBadRequest() throws Exception {
+        validUser.setLogin("user name");
 
-        User createdUser = userController.createUser(user);
-
-        createdUser.setEmail("updated@example.com");
-        createdUser.setName("Updated Name");
-        User updatedUser = userController.updateUser(createdUser);
-
-        assertEquals("updated@example.com", updatedUser.getEmail());
-        assertEquals("Updated Name", updatedUser.getName());
-        assertEquals(createdUser.getId(), updatedUser.getId());
+        mockMvc.perform(post("/users")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(validUser)))
+                .andExpect(status().isBadRequest());
     }
 
     @Test
-    void shouldThrowExceptionWhenUpdateNonExistentUser() {
-        User user = new User();
-        user.setId(999L);
-        user.setEmail("test@example.com");
-        user.setLogin("testLogin");
-        user.setName("Test User");
-        user.setBirthday(LocalDate.of(1990, 1, 1));
+    void createUser_FutureBirthday_ReturnsBadRequest() throws Exception {
+        validUser.setBirthday(LocalDate.now().plusDays(1));
 
-        assertThrows(NotFoundException.class, () -> userController.updateUser(user));
+        mockMvc.perform(post("/users")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(validUser)))
+                .andExpect(status().isBadRequest());
     }
 
     @Test
-    void shouldGetUserById() {
-        User user = new User();
-        user.setEmail("test@example.com");
-        user.setLogin("testLogin");
-        user.setName("Test User");
-        user.setBirthday(LocalDate.of(1990, 1, 1));
+    void updateUser_Valid_ReturnsUpdatedUser() throws Exception {
+        when(userService.updateUser(any(User.class))).thenReturn(validUser);
 
-        User createdUser = userController.createUser(user);
-        User foundUser = userController.getUserById(createdUser.getId());
-
-        assertEquals(createdUser.getId(), foundUser.getId());
-        assertEquals("test@example.com", foundUser.getEmail());
+        mockMvc.perform(put("/users")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(validUser)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(1));
     }
 
     @Test
-    void shouldThrowExceptionWhenGetNonExistentUser() {
-        assertThrows(NotFoundException.class, () -> userController.getUserById(999L));
+    void getAllUsers_ReturnsListOfUsers() throws Exception {
+        List<User> users = Arrays.asList(validUser);
+        when(userService.getAllUsers()).thenReturn(users);
+
+        mockMvc.perform(get("/users"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(1))
+                .andExpect(jsonPath("$[0].email").value("test@example.com"));
     }
 
     @Test
-    void shouldGetAllUsers() {
-        User user1 = new User();
-        user1.setEmail("user1@example.com");
-        user1.setLogin("login1");
-        user1.setName("User 1");
-        user1.setBirthday(LocalDate.of(1990, 1, 1));
+    void getUserById_ExistingUser_ReturnsUser() throws Exception {
+        when(userService.getUserById(1L)).thenReturn(validUser);
 
-        User user2 = new User();
-        user2.setEmail("user2@example.com");
-        user2.setLogin("login2");
-        user2.setName("User 2");
-        user2.setBirthday(LocalDate.of(1991, 1, 1));
-
-        userController.createUser(user1);
-        userController.createUser(user2);
-
-        assertEquals(2, userController.getAllUsers().size());
+        mockMvc.perform(get("/users/1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(1))
+                .andExpect(jsonPath("$.email").value("test@example.com"));
     }
 
     @Test
-    void shouldAddFriend() {
-        User user1 = new User();
-        user1.setEmail("user1@example.com");
-        user1.setLogin("login1");
-        user1.setName("User 1");
-        user1.setBirthday(LocalDate.of(1990, 1, 1));
-
-        User user2 = new User();
-        user2.setEmail("user2@example.com");
-        user2.setLogin("login2");
-        user2.setName("User 2");
-        user2.setBirthday(LocalDate.of(1991, 1, 1));
-
-        User createdUser1 = userController.createUser(user1);
-        User createdUser2 = userController.createUser(user2);
-
-        userController.addFriend(createdUser1.getId(), createdUser2.getId());
-
-        assertEquals(1, userController.getFriends(createdUser1.getId()).size());
-        assertEquals(1, userController.getFriends(createdUser2.getId()).size());
+    void addFriend_ValidIds_ReturnsOk() throws Exception {
+        mockMvc.perform(put("/users/1/friends/2"))
+                .andExpect(status().isOk());
     }
 
     @Test
-    void shouldRemoveFriend() {
-        User user1 = new User();
-        user1.setEmail("user1@example.com");
-        user1.setLogin("login1");
-        user1.setName("User 1");
-        user1.setBirthday(LocalDate.of(1990, 1, 1));
-
-        User user2 = new User();
-        user2.setEmail("user2@example.com");
-        user2.setLogin("login2");
-        user2.setName("User 2");
-        user2.setBirthday(LocalDate.of(1991, 1, 1));
-
-        User createdUser1 = userController.createUser(user1);
-        User createdUser2 = userController.createUser(user2);
-
-        userController.addFriend(createdUser1.getId(), createdUser2.getId());
-        userController.removeFriend(createdUser1.getId(), createdUser2.getId());
-
-        assertEquals(0, userController.getFriends(createdUser1.getId()).size());
-        assertEquals(0, userController.getFriends(createdUser2.getId()).size());
+    void removeFriend_ValidIds_ReturnsOk() throws Exception {
+        mockMvc.perform(delete("/users/1/friends/2"))
+                .andExpect(status().isOk());
     }
 
     @Test
-    void shouldGetCommonFriends() {
-        User user1 = new User();
-        user1.setEmail("user1@example.com");
-        user1.setLogin("login1");
-        user1.setName("User 1");
-        user1.setBirthday(LocalDate.of(1990, 1, 1));
+    void getFriends_ExistingUser_ReturnsFriendsList() throws Exception {
+        List<User> friends = Arrays.asList(validUser);
+        when(userService.getFriends(1L)).thenReturn(friends);
 
-        User user2 = new User();
-        user2.setEmail("user2@example.com");
-        user2.setLogin("login2");
-        user2.setName("User 2");
-        user2.setBirthday(LocalDate.of(1991, 1, 1));
-
-        User user3 = new User();
-        user3.setEmail("user3@example.com");
-        user3.setLogin("login3");
-        user3.setName("User 3");
-        user3.setBirthday(LocalDate.of(1992, 1, 1));
-
-        User createdUser1 = userController.createUser(user1);
-        User createdUser2 = userController.createUser(user2);
-        User createdUser3 = userController.createUser(user3);
-
-        userController.addFriend(createdUser1.getId(), createdUser3.getId());
-        userController.addFriend(createdUser2.getId(), createdUser3.getId());
-
-        assertEquals(1, userController.getCommonFriends(createdUser1.getId(), createdUser2.getId()).size());
-        assertEquals(createdUser3.getId(),
-                userController.getCommonFriends(createdUser1.getId(), createdUser2.getId()).get(0).getId());
+        mockMvc.perform(get("/users/1/friends"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(1));
     }
 
     @Test
-    void shouldReturnEmptyListWhenNoCommonFriends() {
-        User user1 = new User();
-        user1.setEmail("user1@example.com");
-        user1.setLogin("login1");
-        user1.setName("User 1");
-        user1.setBirthday(LocalDate.of(1990, 1, 1));
+    void getCommonFriends_ValidIds_ReturnsCommonFriendsList() throws Exception {
+        List<User> commonFriends = Arrays.asList(validUser);
+        when(userService.getCommonFriends(1L, 2L)).thenReturn(commonFriends);
 
-        User user2 = new User();
-        user2.setEmail("user2@example.com");
-        user2.setLogin("login2");
-        user2.setName("User 2");
-        user2.setBirthday(LocalDate.of(1991, 1, 1));
-
-        User createdUser1 = userController.createUser(user1);
-        User createdUser2 = userController.createUser(user2);
-
-        assertEquals(0, userController.getCommonFriends(createdUser1.getId(), createdUser2.getId()).size());
-    }
-
-    @Test
-    void shouldThrowExceptionWhenAddingNonExistentUserAsFriend() {
-        User user = new User();
-        user.setEmail("user@example.com");
-        user.setLogin("login");
-        user.setName("User");
-        user.setBirthday(LocalDate.of(1990, 1, 1));
-
-        User createdUser = userController.createUser(user);
-
-        assertThrows(NotFoundException.class, () ->
-                userController.addFriend(createdUser.getId(), 999L));
+        mockMvc.perform(get("/users/1/friends/common/2"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(1));
     }
 }

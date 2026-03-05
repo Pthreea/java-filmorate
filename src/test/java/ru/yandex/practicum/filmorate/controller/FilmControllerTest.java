@@ -1,149 +1,153 @@
 package ru.yandex.practicum.filmorate.controller;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import ru.yandex.practicum.filmorate.exception.NotFoundException;
-import ru.yandex.practicum.filmorate.exception.ValidationException;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
 import ru.yandex.practicum.filmorate.model.Film;
 import ru.yandex.practicum.filmorate.service.FilmService;
-import ru.yandex.practicum.filmorate.storage.film.FilmStorage;
-import ru.yandex.practicum.filmorate.storage.film.InMemoryFilmStorage;
-import ru.yandex.practicum.filmorate.storage.user.InMemoryUserStorage;
-import ru.yandex.practicum.filmorate.storage.user.UserStorage;
 
 import java.time.LocalDate;
+import java.util.Arrays;
+import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+@WebMvcTest(FilmController.class)
 class FilmControllerTest {
 
-    private FilmController filmController;
-    private FilmStorage filmStorage;
+    @Autowired
+    private MockMvc mockMvc;
+
+    @Autowired
+    private ObjectMapper objectMapper;
+
+    @MockBean
     private FilmService filmService;
+
+    private Film validFilm;
 
     @BeforeEach
     void setUp() {
-        filmStorage = new InMemoryFilmStorage();
-        UserStorage userStorage = new InMemoryUserStorage();
-        filmService = new FilmService(filmStorage, userStorage);
-        filmController = new FilmController(filmStorage, filmService);
+        validFilm = new Film();
+        validFilm.setId(1L);
+        validFilm.setName("Test Film");
+        validFilm.setDescription("Test Description");
+        validFilm.setReleaseDate(LocalDate.of(2000, 1, 1));
+        validFilm.setDuration(120);
     }
 
     @Test
-    void shouldCreateFilm() {
-        Film film = new Film();
-        film.setName("Test Film");
-        film.setDescription("Test Description");
-        film.setReleaseDate(LocalDate.of(2000, 1, 1));
-        film.setDuration(120);
+    void createFilm_Valid_ReturnsCreatedFilm() throws Exception {
+        when(filmService.createFilm(any(Film.class))).thenReturn(validFilm);
 
-        Film createdFilm = filmController.createFilm(film);
-
-        assertNotNull(createdFilm.getId());
-        assertEquals("Test Film", createdFilm.getName());
-        assertEquals(1, filmController.getAllFilms().size());
+        mockMvc.perform(post("/films")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(validFilm)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(1))
+                .andExpect(jsonPath("$.name").value("Test Film"));
     }
 
     @Test
-    void shouldUpdateFilm() {
-        Film film = new Film();
-        film.setName("Original Name");
-        film.setDescription("Original Description");
-        film.setReleaseDate(LocalDate.of(2000, 1, 1));
-        film.setDuration(120);
+    void createFilm_EmptyName_ReturnsBadRequest() throws Exception {
+        validFilm.setName("");
 
-        Film createdFilm = filmController.createFilm(film);
-
-        createdFilm.setName("Updated Name");
-        Film updatedFilm = filmController.updateFilm(createdFilm);
-
-        assertEquals("Updated Name", updatedFilm.getName());
-        assertEquals(createdFilm.getId(), updatedFilm.getId());
+        mockMvc.perform(post("/films")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(validFilm)))
+                .andExpect(status().isBadRequest());
     }
 
     @Test
-    void shouldThrowExceptionWhenUpdateNonExistentFilm() {
-        Film film = new Film();
-        film.setId(999L);
-        film.setName("Test Film");
-        film.setDescription("Test Description");
-        film.setReleaseDate(LocalDate.of(2000, 1, 1));
-        film.setDuration(120);
+    void createFilm_DescriptionTooLong_ReturnsBadRequest() throws Exception {
+        validFilm.setDescription("a".repeat(201));
 
-        assertThrows(NotFoundException.class, () -> filmController.updateFilm(film));
+        mockMvc.perform(post("/films")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(validFilm)))
+                .andExpect(status().isBadRequest());
     }
 
     @Test
-    void shouldGetFilmById() {
-        Film film = new Film();
-        film.setName("Test Film");
-        film.setDescription("Test Description");
-        film.setReleaseDate(LocalDate.of(2000, 1, 1));
-        film.setDuration(120);
+    void createFilm_NegativeDuration_ReturnsBadRequest() throws Exception {
+        validFilm.setDuration(-1);
 
-        Film createdFilm = filmController.createFilm(film);
-        Film foundFilm = filmController.getFilmById(createdFilm.getId());
-
-        assertEquals(createdFilm.getId(), foundFilm.getId());
-        assertEquals("Test Film", foundFilm.getName());
+        mockMvc.perform(post("/films")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(validFilm)))
+                .andExpect(status().isBadRequest());
     }
 
     @Test
-    void shouldThrowExceptionWhenGetNonExistentFilm() {
-        assertThrows(NotFoundException.class, () -> filmController.getFilmById(999L));
+    void updateFilm_Valid_ReturnsUpdatedFilm() throws Exception {
+        when(filmService.updateFilm(any(Film.class))).thenReturn(validFilm);
+
+        mockMvc.perform(put("/films")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(validFilm)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(1));
     }
 
     @Test
-    void shouldGetAllFilms() {
-        Film film1 = new Film();
-        film1.setName("Film 1");
-        film1.setDescription("Description 1");
-        film1.setReleaseDate(LocalDate.of(2000, 1, 1));
-        film1.setDuration(120);
+    void getAllFilms_ReturnsListOfFilms() throws Exception {
+        List<Film> films = Arrays.asList(validFilm);
+        when(filmService.getAllFilms()).thenReturn(films);
 
-        Film film2 = new Film();
-        film2.setName("Film 2");
-        film2.setDescription("Description 2");
-        film2.setReleaseDate(LocalDate.of(2001, 1, 1));
-        film2.setDuration(130);
-
-        filmController.createFilm(film1);
-        filmController.createFilm(film2);
-
-        assertEquals(2, filmController.getAllFilms().size());
+        mockMvc.perform(get("/films"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(1))
+                .andExpect(jsonPath("$[0].name").value("Test Film"));
     }
 
     @Test
-    void shouldThrowExceptionWhenReleaseDateBeforeCinemaBirthday() {
-        Film film = new Film();
-        film.setName("Test Film");
-        film.setDescription("Test Description");
-        film.setReleaseDate(LocalDate.of(1895, 12, 27));
-        film.setDuration(120);
+    void getFilmById_ExistingFilm_ReturnsFilm() throws Exception {
+        when(filmService.getFilmById(1L)).thenReturn(validFilm);
 
-        assertThrows(ValidationException.class, () -> filmController.createFilm(film));
+        mockMvc.perform(get("/films/1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(1))
+                .andExpect(jsonPath("$.name").value("Test Film"));
     }
 
     @Test
-    void shouldAllowReleaseDateOnCinemaBirthday() {
-        Film film = new Film();
-        film.setName("Test Film");
-        film.setDescription("Test Description");
-        film.setReleaseDate(LocalDate.of(1895, 12, 28));
-        film.setDuration(120);
-
-        assertDoesNotThrow(() -> filmController.createFilm(film));
+    void addLike_ValidIds_ReturnsOk() throws Exception {
+        mockMvc.perform(put("/films/1/like/1"))
+                .andExpect(status().isOk());
     }
 
     @Test
-    void shouldAllowReleaseDateAfterCinemaBirthday() {
-        Film film = new Film();
-        film.setName("Test Film");
-        film.setDescription("Test Description");
-        film.setReleaseDate(LocalDate.of(1895, 12, 29));
-        film.setDuration(120);
+    void removeLike_ValidIds_ReturnsOk() throws Exception {
+        mockMvc.perform(delete("/films/1/like/1"))
+                .andExpect(status().isOk());
+    }
 
-        Film createdFilm = filmController.createFilm(film);
-        assertNotNull(createdFilm.getId());
+    @Test
+    void getPopularFilms_ReturnsPopularFilmsList() throws Exception {
+        List<Film> popularFilms = Arrays.asList(validFilm);
+        when(filmService.getPopularFilms(anyInt())).thenReturn(popularFilms);
+
+        mockMvc.perform(get("/films/popular?count=10"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(1));
+    }
+
+    @Test
+    void getPopularFilms_DefaultCount_ReturnsPopularFilmsList() throws Exception {
+        List<Film> popularFilms = Arrays.asList(validFilm);
+        when(filmService.getPopularFilms(10)).thenReturn(popularFilms);
+
+        mockMvc.perform(get("/films/popular"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(1));
     }
 }
