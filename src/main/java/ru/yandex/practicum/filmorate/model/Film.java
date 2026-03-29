@@ -12,6 +12,7 @@ import javax.validation.constraints.Size;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import lombok.Data;
+import ru.yandex.practicum.filmorate.validation.ValidReleaseDate;
 
 @Data
 public class Film {
@@ -23,6 +24,7 @@ public class Film {
     @Size(max = 200, message = "Максимальная длина описания - 200 символов")
     private String description;
 
+    @ValidReleaseDate
     @NotNull(message = "Дата релиза обязательна")
     private LocalDate releaseDate;
 
