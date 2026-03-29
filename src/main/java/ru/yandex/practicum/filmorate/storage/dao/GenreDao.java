@@ -7,5 +7,6 @@ import ru.yandex.practicum.filmorate.model.Genre;
 
 public interface GenreDao {
     List<Genre> findAll();
+
     Optional<Genre> findById(Integer id);
 }
