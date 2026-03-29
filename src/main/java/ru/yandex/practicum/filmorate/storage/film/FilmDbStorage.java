@@ -48,12 +48,12 @@ public class FilmDbStorage implements FilmStorage {
         film.setId(keyHolder.getKey().longValue());
         log.debug("Создан фильм с ID: {}", film.getId());
 
-        // Сохраняем жанры если есть
+
         if (film.getGenres() != null && !film.getGenres().isEmpty()) {
             saveGenres(film);
         }
 
-        // Сохраняем лайки если есть
+
         if (film.getLikes() != null && !film.getLikes().isEmpty()) {
             saveLikes(film);
         }
@@ -82,10 +82,10 @@ public class FilmDbStorage implements FilmStorage {
 
         log.debug("Обновлен фильм с ID: {}", film.getId());
 
-        // Обновляем жанры
+
         updateGenres(film);
 
-        // Обновляем лайки
+
         updateLikes(film);
 
         return film;
@@ -99,7 +99,7 @@ public class FilmDbStorage implements FilmStorage {
 
         List<Film> films = jdbcTemplate.query(sql, filmRowMapper());
 
-        // Загружаем жанры и лайки для каждого фильма
+
         for (Film film : films) {
             loadGenres(film);
             loadLikes(film);
@@ -135,7 +135,6 @@ public class FilmDbStorage implements FilmStorage {
         return Optional.of(film);
     }
 
-    // ============ Вспомогательные методы для работы с жанрами ============
 
     private void saveGenres(Film film) {
         if (film.getGenres() == null || film.getGenres().isEmpty()) {
@@ -152,11 +151,11 @@ public class FilmDbStorage implements FilmStorage {
     }
 
     private void updateGenres(Film film) {
-        // Удаляем старые жанры
+
         String deleteSql = "DELETE FROM film_genres WHERE film_id = ?";
         jdbcTemplate.update(deleteSql, film.getId());
 
-        // Добавляем новые жанры
+
         saveGenres(film);
     }
 
@@ -175,7 +174,6 @@ public class FilmDbStorage implements FilmStorage {
         log.trace("Загружено {} жанров для фильма {}", genres.size(), film.getId());
     }
 
-    // ============ Вспомогательные методы для работы с лайками ============
 
     private void saveLikes(Film film) {
         if (film.getLikes() == null || film.getLikes().isEmpty()) {
@@ -192,11 +190,11 @@ public class FilmDbStorage implements FilmStorage {
     }
 
     private void updateLikes(Film film) {
-        // Удаляем старые лайки
+
         String deleteSql = "DELETE FROM likes WHERE film_id = ?";
         jdbcTemplate.update(deleteSql, film.getId());
 
-        // Добавляем новые лайки
+
         saveLikes(film);
     }
 
@@ -213,7 +211,6 @@ public class FilmDbStorage implements FilmStorage {
         log.trace("Загружено {} лайков для фильма {}", likes.size(), film.getId());
     }
 
-    // ============ RowMapper для Film ============
 
     private RowMapper<Film> filmRowMapper() {
         return (rs, rowNum) -> mapRowToFilm(rs);
@@ -227,22 +224,18 @@ public class FilmDbStorage implements FilmStorage {
         film.setReleaseDate(rs.getDate("release_date").toLocalDate());
         film.setDuration(rs.getInt("duration"));
 
-        // Маппинг MPA по ID
+
         int mpaId = rs.getInt("mpa_id");
         film.setMpa(Mpa.fromId(mpaId));
 
-        // Инициализируем пустые коллекции
+
         film.setGenres(new HashSet<>());
         film.setLikes(new HashSet<>());
 
         return film;
     }
 
-    // ============ Дополнительные методы для поиска ============
 
-    /**
-     * Получить топ N популярных фильмов
-     */
     public List<Film> findTopPopular(int count) {
         String sql = "SELECT f.film_id, f.name, f.description, f.release_date, f.duration, f.mpa_id, " +
                 "COUNT(l.user_id) as likes_count " +
@@ -254,7 +247,7 @@ public class FilmDbStorage implements FilmStorage {
 
         List<Film> films = jdbcTemplate.query(sql, filmRowMapper(), count);
 
-        // Загружаем жанры и лайки для каждого фильма
+
         for (Film film : films) {
             loadGenres(film);
             loadLikes(film);
@@ -264,9 +257,7 @@ public class FilmDbStorage implements FilmStorage {
         return films;
     }
 
-    /**
-     * Получить фильмы по жанру
-     */
+
     public List<Film> findByGenre(Genre genre) {
         String sql = "SELECT f.film_id, f.name, f.description, f.release_date, f.duration, f.mpa_id " +
                 "FROM films f " +
@@ -276,7 +267,7 @@ public class FilmDbStorage implements FilmStorage {
 
         List<Film> films = jdbcTemplate.query(sql, filmRowMapper(), genre.getId());
 
-        // Загружаем жанры и лайки для каждого фильма
+
         for (Film film : films) {
             loadGenres(film);
             loadLikes(film);
@@ -286,9 +277,7 @@ public class FilmDbStorage implements FilmStorage {
         return films;
     }
 
-    /**
-     * Получить фильмы по рейтингу MPA
-     */
+
     public List<Film> findByMpa(Mpa mpa) {
         String sql = "SELECT f.film_id, f.name, f.description, f.release_date, f.duration, f.mpa_id " +
                 "FROM films f " +
@@ -307,9 +296,7 @@ public class FilmDbStorage implements FilmStorage {
         return films;
     }
 
-    /**
-     * Добавить лайк к фильму
-     */
+
     public void addLike(Long filmId, Long userId) {
         String checkSql = "SELECT COUNT(*) FROM likes WHERE film_id = ? AND user_id = ?";
         Integer count = jdbcTemplate.queryForObject(checkSql, Integer.class, filmId, userId);
@@ -324,9 +311,7 @@ public class FilmDbStorage implements FilmStorage {
         log.debug("Пользователь {} поставил лайк фильму {}", userId, filmId);
     }
 
-    /**
-     * Удалить лайк у фильма
-     */
+
     public void removeLike(Long filmId, Long userId) {
         String sql = "DELETE FROM likes WHERE film_id = ? AND user_id = ?";
         int rowsAffected = jdbcTemplate.update(sql, filmId, userId);
@@ -338,18 +323,13 @@ public class FilmDbStorage implements FilmStorage {
         }
     }
 
-    /**
-     * Получить количество лайков у фильма
-     */
+
     public int getLikesCount(Long filmId) {
         String sql = "SELECT COUNT(*) FROM likes WHERE film_id = ?";
         Integer count = jdbcTemplate.queryForObject(sql, Integer.class, filmId);
         return count != null ? count : 0;
     }
 
-    /**
-     * Проверить, поставил ли пользователь лайк фильму
-     */
     public boolean hasUserLiked(Long filmId, Long userId) {
         String sql = "SELECT COUNT(*) FROM likes WHERE film_id = ? AND user_id = ?";
         Integer count = jdbcTemplate.queryForObject(sql, Integer.class, filmId, userId);

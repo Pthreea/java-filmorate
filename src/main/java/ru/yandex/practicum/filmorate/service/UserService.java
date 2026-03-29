@@ -59,22 +59,17 @@ public class UserService {
         User user = getUserById(userId);
         User friend = getUserById(friendId);
 
-        // Проверяем, не добавлен ли уже в друзья
         if (user.getFriends().containsKey(friendId)) {
             log.warn("Пользователь {} уже в друзьях у пользователя {}", friendId, userId);
             return;
         }
 
-        // Односторонняя дружба: только user добавляет friend
-        // Проверяем, есть ли встречная заявка (для статуса CONFIRMED)
         if (friend.getFriends().containsKey(userId)) {
-            // Если friend уже добавил user в друзья, то дружба становится подтвержденной
             user.getFriends().put(friendId, FriendshipStatus.CONFIRMED);
             friend.getFriends().put(userId, FriendshipStatus.CONFIRMED);
             userStorage.update(friend);
             log.info("Дружба между пользователями {} и {} подтверждена", userId, friendId);
         } else {
-            // Иначе - неподтвержденная дружба
             user.getFriends().put(friendId, FriendshipStatus.UNCONFIRMED);
             log.info("Пользователь {} отправил заявку в друзья пользователю {}", userId, friendId);
         }
@@ -92,11 +87,10 @@ public class UserService {
             return;
         }
 
-        // Удаляем дружбу
         user.getFriends().remove(friendId);
         userStorage.update(user);
 
-        // Если дружба была взаимной, меняем статус у friend на UNCONFIRMED
+
         if (friend.getFriends().containsKey(userId) &&
                 friend.getFriends().get(userId) == FriendshipStatus.CONFIRMED) {
             friend.getFriends().put(userId, FriendshipStatus.UNCONFIRMED);
