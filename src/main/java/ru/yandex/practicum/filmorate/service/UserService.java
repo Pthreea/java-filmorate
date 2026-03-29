@@ -1,7 +1,6 @@
 package ru.yandex.practicum.filmorate.service;
 
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
@@ -56,9 +55,6 @@ public class UserService {
                 });
     }
 
-    /**
-     * Односторонняя дружба: user добавляет friend в друзья
-     */
     public void addFriend(Long userId, Long friendId) {
         User user = getUserById(userId);
         User friend = getUserById(friendId);
@@ -86,9 +82,7 @@ public class UserService {
         userStorage.update(user);
     }
 
-    /**
-     * Удаление из друзей (односторонне)
-     */
+
     public void removeFriend(Long userId, Long friendId) {
         User user = getUserById(userId);
         User friend = getUserById(friendId);
@@ -113,9 +107,6 @@ public class UserService {
         log.info("Пользователь {} удален из друзей пользователя {}", friendId, userId);
     }
 
-    /**
-     * Получить список друзей пользователя
-     */
     public List<User> getFriends(Long userId) {
         User user = getUserById(userId);
 
@@ -127,9 +118,6 @@ public class UserService {
         return friends;
     }
 
-    /**
-     * Получить список общих друзей двух пользователей
-     */
     public List<User> getCommonFriends(Long userId, Long otherUserId) {
         User user = getUserById(userId);
         User otherUser = getUserById(otherUserId);
