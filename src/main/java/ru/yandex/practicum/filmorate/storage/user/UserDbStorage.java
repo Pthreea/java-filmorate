@@ -45,8 +45,7 @@ public class UserDbStorage implements UserStorage {
         user.setId(keyHolder.getKey().longValue());
         log.debug("Создан пользователь с ID: {}", user.getId());
 
-        // Сохраняем друзей если есть
-        if (!user.getFriends().isEmpty()) {
+        if (user.getFriends() != null && !user.getFriends().isEmpty()) {
             saveFriendships(user);
         }
 
@@ -72,7 +71,6 @@ public class UserDbStorage implements UserStorage {
 
         log.debug("Обновлен пользователь с ID: {}", user.getId());
 
-        // Обновляем дружбу
         updateFriendships(user);
 
         return user;
@@ -83,18 +81,12 @@ public class UserDbStorage implements UserStorage {
         String sql = "SELECT * FROM users ORDER BY user_id";
         List<User> users = jdbcTemplate.query(sql, userRowMapper());
 
-        // Загружаем друзей для каждого пользователя
         for (User user : users) {
             loadFriendships(user);
         }
 
         log.debug("Найдено {} пользователей", users.size());
         return users;
-    }
-
-    @Override
-    public void delete(Long id) {
-
     }
 
     @Override
@@ -115,20 +107,54 @@ public class UserDbStorage implements UserStorage {
         return Optional.of(user);
     }
 
-    // Вспомогательные методы для работы с дружбой
+    @Override
+    public List<User> findFriends(Long userId) {
+        String sql = "SELECT u.* FROM users u " +
+                "JOIN friendships fr ON u.user_id = fr.friend_id " +
+                "WHERE fr.user_id = ? " +
+                "ORDER BY u.user_id";
+
+        List<User> friends = jdbcTemplate.query(sql, userRowMapper(), userId);
+
+        for (User friend : friends) {
+            loadFriendships(friend);
+        }
+
+        log.debug("Найдено {} друзей для пользователя {}", friends.size(), userId);
+        return friends;
+    }
+
+    @Override
+    public List<User> findCommonFriends(Long userId, Long otherUserId) {
+        String sql = "SELECT u.* FROM users u " +
+                "WHERE u.user_id IN (" +
+                "    SELECT fr1.friend_id FROM friendships fr1 WHERE fr1.user_id = ? " +
+                "    INTERSECT " +
+                "    SELECT fr2.friend_id FROM friendships fr2 WHERE fr2.user_id = ?" +
+                ") " +
+                "ORDER BY u.user_id";
+
+        List<User> commonFriends = jdbcTemplate.query(sql, userRowMapper(), userId, otherUserId);
+
+        for (User friend : commonFriends) {
+            loadFriendships(friend);
+        }
+
+        log.debug("Найдено {} общих друзей для пользователей {} и {}",
+                commonFriends.size(), userId, otherUserId);
+        return commonFriends;
+    }
+
 
     private void saveFriendships(User user) {
-        String deleteSql = "DELETE FROM friendships WHERE user_id = ?";
-        jdbcTemplate.update(deleteSql, user.getId());
-
-        if (user.getFriends().isEmpty()) {
+        if (user.getFriends() == null || user.getFriends().isEmpty()) {
             return;
         }
 
-        String insertSql = "INSERT INTO friendships (user_id, friend_id, status) VALUES (?, ?, ?)";
+        String sql = "INSERT INTO friendships (user_id, friend_id, status) VALUES (?, ?, ?)";
 
         for (Map.Entry<Long, FriendshipStatus> entry : user.getFriends().entrySet()) {
-            jdbcTemplate.update(insertSql,
+            jdbcTemplate.update(sql,
                     user.getId(),
                     entry.getKey(),
                     entry.getValue().name()
@@ -139,6 +165,9 @@ public class UserDbStorage implements UserStorage {
     }
 
     private void updateFriendships(User user) {
+        String deleteSql = "DELETE FROM friendships WHERE user_id = ?";
+        jdbcTemplate.update(deleteSql, user.getId());
+
         saveFriendships(user);
     }
 
@@ -154,10 +183,9 @@ public class UserDbStorage implements UserStorage {
         }, user.getId());
 
         user.setFriends(friends);
-        log.debug("Загружено {} друзей для пользователя {}", friends.size(), user.getId());
+        log.trace("Загружено {} друзей для пользователя {}", friends.size(), user.getId());
     }
 
-    // RowMapper для User
 
     private RowMapper<User> userRowMapper() {
         return (rs, rowNum) -> mapRowToUser(rs);
@@ -172,5 +200,39 @@ public class UserDbStorage implements UserStorage {
         user.setBirthday(rs.getDate("birthday").toLocalDate());
         user.setFriends(new HashMap<>());
         return user;
+    }
+
+    public boolean isFriend(Long userId, Long friendId) {
+        String sql = "SELECT COUNT(*) FROM friendships WHERE user_id = ? AND friend_id = ?";
+        Integer count = jdbcTemplate.queryForObject(sql, Integer.class, userId, friendId);
+        return count != null && count > 0;
+    }
+
+
+    public Optional<FriendshipStatus> getFriendshipStatus(Long userId, Long friendId) {
+        String sql = "SELECT status FROM friendships WHERE user_id = ? AND friend_id = ?";
+        List<String> statuses = jdbcTemplate.query(sql,
+                (rs, rowNum) -> rs.getString("status"),
+                userId, friendId);
+
+        if (statuses.isEmpty()) {
+            return Optional.empty();
+        }
+
+        return Optional.of(FriendshipStatus.valueOf(statuses.get(0)));
+    }
+
+
+    public void addFriend(Long userId, Long friendId) {
+        String sql = "MERGE INTO friendships (user_id, friend_id, status) KEY(user_id, friend_id) VALUES (?, ?, ?)";
+        jdbcTemplate.update(sql, userId, friendId, FriendshipStatus.UNCONFIRMED.name());
+        log.debug("Пользователь {} добавил в друзья пользователя {}", userId, friendId);
+    }
+
+
+    public void removeFriend(Long userId, Long friendId) {
+        String sql = "DELETE FROM friendships WHERE user_id = ? AND friend_id = ?";
+        jdbcTemplate.update(sql, userId, friendId);
+        log.debug("Пользователь {} удалил из друзей пользователя {}", userId, friendId);
     }
 }

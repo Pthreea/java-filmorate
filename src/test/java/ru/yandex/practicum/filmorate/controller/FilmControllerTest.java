@@ -9,6 +9,8 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import ru.yandex.practicum.filmorate.model.Film;
+import ru.yandex.practicum.filmorate.model.Mpa;
+import ru.yandex.practicum.filmorate.model.User;
 import ru.yandex.practicum.filmorate.service.FilmService;
 
 import java.time.LocalDate;
@@ -47,13 +49,20 @@ class FilmControllerTest {
 
     @Test
     void createFilm_Valid_ReturnsCreatedFilm() throws Exception {
-        when(filmService.createFilm(any(Film.class))).thenReturn(validFilm);
+        Film film = new Film();
+        film.setName("Test Film");
+        film.setDescription("Test Description");
+        film.setReleaseDate(LocalDate.of(2020, 1, 1));
+        film.setDuration(120);
+        film.setMpa(Mpa.G); // ДОБАВЬТЕ это!
+
+        String filmJson = objectMapper.writeValueAsString(film);
 
         mockMvc.perform(post("/films")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(validFilm)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(1))
+                        .content(filmJson))
+                .andExpect(status().isCreated()) // Ожидаем 201, а не 200
+                .andExpect(jsonPath("$.id").exists())
                 .andExpect(jsonPath("$.name").value("Test Film"));
     }
 
@@ -89,13 +98,35 @@ class FilmControllerTest {
 
     @Test
     void updateFilm_Valid_ReturnsUpdatedFilm() throws Exception {
-        when(filmService.updateFilm(any(Film.class))).thenReturn(validFilm);
+        // Given - сначала создаем фильм
+        Film film = new Film();
+        film.setName("Original Film");
+        film.setDescription("Original Description");
+        film.setReleaseDate(LocalDate.of(2020, 1, 1));
+        film.setDuration(120);
+        film.setMpa(Mpa.G);
+
+        String createJson = objectMapper.writeValueAsString(film);
+
+        String response = mockMvc.perform(post("/films")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(createJson))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        Film createdFilm = objectMapper.readValue(response, Film.class);
+
+        createdFilm.setName("Updated Film");
+        createdFilm.setDescription("Updated Description");
+        String updateJson = objectMapper.writeValueAsString(createdFilm);
 
         mockMvc.perform(put("/films")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(validFilm)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(1));
+                        .content(updateJson))
+                .andExpect(status().isOk()) // 200 OK
+                .andExpect(jsonPath("$.name").value("Updated Film"));
     }
 
     @Test
@@ -121,8 +152,42 @@ class FilmControllerTest {
 
     @Test
     void addLike_ValidIds_ReturnsOk() throws Exception {
-        mockMvc.perform(put("/films/1/like/1"))
-                .andExpect(status().isOk());
+        // Given - создаем фильм и пользователя
+        Film film = new Film();
+        film.setName("Test Film");
+        film.setDescription("Description");
+        film.setReleaseDate(LocalDate.of(2020, 1, 1));
+        film.setDuration(120);
+        film.setMpa(Mpa.G);
+
+        String filmResponse = mockMvc.perform(post("/films")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(film)))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        Film createdFilm = objectMapper.readValue(filmResponse, Film.class);
+
+        User user = new User();
+        user.setEmail("test@example.com");
+        user.setLogin("testuser");
+        user.setName("Test User");
+        user.setBirthday(LocalDate.of(1990, 1, 1));
+
+        String userResponse = mockMvc.perform(post("/users")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(user)))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        User createdUser = objectMapper.readValue(userResponse, User.class);
+
+        mockMvc.perform(put("/films/" + createdFilm.getId() + "/like/" + createdUser.getId()))
+                .andExpect(status().isNoContent()); // Ожидаем 204, а не 200
     }
 
     @Test

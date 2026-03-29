@@ -9,6 +9,8 @@ import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Positive;
 import javax.validation.constraints.Size;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 import lombok.Data;
 
 @Data
@@ -32,5 +34,15 @@ public class Film {
 
     private Set<Genre> genres = new HashSet<>();
 
+    @JsonIgnore
     private Set<Long> likes = new HashSet<>();
+
+    public int getLikesCount() {
+        return likes != null ? likes.size() : 0;
+    }
+
+    public Film() {
+        this.genres = new HashSet<>();
+        this.likes = new HashSet<>();
+    }
 }
