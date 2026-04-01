@@ -1,25 +1,44 @@
 package ru.yandex.practicum.filmorate.model;
 
-public enum Mpa {
-    G("G", "У фильма нет возрастных ограничений"),
-    PG("PG", "Детям рекомендуется смотреть фильм с родителями"),
-    PG_13("PG-13", "Детям до 13 лет просмотр не желателен"),
-    R("R", "Лицам до 17 лет просматривать фильм можно только в присутствии взрослого"),
-    NC_17("NC-17", "Лицам до 18 лет просмотр запрещён");
+import com.fasterxml.jackson.annotation.JsonProperty;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
-    private final String code;
-    private final String description;
+import java.util.Objects;
 
-    Mpa(String code, String description) {
-        this.code = code;
-        this.description = description;
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class Mpa {
+
+
+    @JsonProperty("id")
+    private Integer id;
+
+    @JsonProperty("name")
+    private String name;
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Mpa mpa = (Mpa) o;
+        return Objects.equals(id, mpa.id);
     }
 
-    public String getCode() {
-        return code;
+    @Override
+    public int hashCode() {
+        return Objects.hash(id);
     }
 
-    public String getDescription() {
-        return description;
+    @Override
+    public String toString() {
+        return "Mpa{" +
+                "id=" + id +
+                ", name='" + name + '\'' +
+                '}';
     }
 }
