@@ -8,23 +8,18 @@ import lombok.NoArgsConstructor;
 
 import java.util.Objects;
 
-
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class Mpa {
 
+
     @JsonProperty("id")
     private Integer id;
 
     @JsonProperty("name")
     private String name;
-
-    public Mpa(Integer id, String name) {
-        this.id = id;
-        this.name = name;
-    }
 
     @Override
     public boolean equals(Object o) {

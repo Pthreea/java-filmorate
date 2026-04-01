@@ -8,9 +8,6 @@ import lombok.NoArgsConstructor;
 
 import java.util.Objects;
 
-/**
- * Модель жанра фильма
- */
 @Data
 @Builder
 @NoArgsConstructor
@@ -22,11 +19,6 @@ public class Genre implements Comparable<Genre> {
 
     @JsonProperty("name")
     private String name;
-
-    public Genre(Integer id, String name) {
-        this.id = id;
-        this.name = name;
-    }
 
     @Override
     public boolean equals(Object o) {
