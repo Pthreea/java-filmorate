@@ -1,63 +1,68 @@
 package ru.yandex.practicum.filmorate.model;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
-import lombok.Getter;
+import java.util.Objects;
 
-@Getter
-public enum Genre {
-    COMEDY(1, "Комедия"),
-    DRAMA(2, "Драма"),
-    CARTOON(3, "Мультфильм"),
-    THRILLER(4, "Триллер"),
-    DOCUMENTARY(5, "Документальный"),
-    ACTION(6, "Боевик");
+/**
+ * Модель жанра фильма
+ */
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class Genre implements Comparable<Genre> {
 
-    private final int id;
-    private final String name;
+    @JsonProperty("id")
+    private Integer id;
 
-    Genre(int id, String name) {
+    @JsonProperty("name")
+    private String name;
+
+    public Genre(Integer id, String name) {
         this.id = id;
         this.name = name;
     }
 
-    @JsonCreator
-    public static Genre fromJson(@JsonProperty("id") Integer id) {
-        if (id == null) {
-            throw new IllegalArgumentException("Genre id не может быть null");
-        }
-        for (Genre genre : values()) {
-            if (genre.id == id) {
-                return genre;
-            }
-        }
-        throw new IllegalArgumentException("Неизвестный Genre id: " + id);
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Genre genre = (Genre) o;
+        return Objects.equals(id, genre.id);
     }
 
-    public static Genre fromName(String name) {
-        if (name == null) {
-            throw new IllegalArgumentException("Genre name не может быть null");
-        }
-        for (Genre genre : values()) {
-            if (genre.name.equalsIgnoreCase(name)) {
-                return genre;
-            }
-        }
-        throw new IllegalArgumentException("Неизвестный жанр: " + name);
+    @Override
+    public int hashCode() {
+        return Objects.hash(id);
     }
 
-    public static Genre fromId(int id) {
-        for (Genre genre : values()) {
-            if (genre.id == id) {
-                return genre;
-            }
+    @Override
+    public int compareTo(Genre other) {
+        if (other == null) {
+            return 1;
         }
-        throw new IllegalArgumentException("Неизвестный Genre id: " + id);
+        if (this.id == null && other.id == null) {
+            return 0;
+        }
+        if (this.id == null) {
+            return -1;
+        }
+        if (other.id == null) {
+            return 1;
+        }
+        return this.id.compareTo(other.id);
     }
 
     @Override
     public String toString() {
-        return name;
+        return "Genre{" +
+                "id=" + id +
+                ", name='" + name + '\'' +
+                '}';
     }
 }
